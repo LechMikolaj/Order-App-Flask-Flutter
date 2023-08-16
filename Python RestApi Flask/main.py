@@ -1,21 +1,9 @@
-import json
-
 from flask import Flask, request, jsonify
 import mysql.connector
 from mysql.connector import (connection)
 from mysql.connector import errorcode
-import datetime
-# from flask_cors import CORS
-
-
 app = Flask(__name__)
-# CORS(app)
 
-class User:
-    user='root'
-    password=''
-    host='127.0.0.1'
-    database='Twitter_Clone'
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -33,7 +21,7 @@ def register():
             return jsonify("user exist"), 200
 
         else:
-            cnx = connection.MySQLConnection(user=User.user, password=User.password, host=User.host, database=User.database)
+            cnx = connection.MySQLConnection(user='root', password='password', host='127.0.0.1', database='users')
             cursor = cnx.cursor()
             query = ("INSERT INTO users (username, email, password) "
                       "VALUES (%s, %s, %s)")
@@ -52,9 +40,9 @@ def loginEndpoint():
     password = data['password']
 
     try:
-        cnx = connection.MySQLConnection(user=User.user, password=User.password, host=User.host, database=User.database)
+        cnx = connection.MySQLConnection(user='root', password='password',host='127.0.0.1',database='users')
         cursor = cnx.cursor()
-        query = ("SELECT username, email,id  FROM users WHERE email = %s AND password = %s")
+        query = ("SELECT username, email,id  FROM Users WHERE email = %s AND password = %s")
         val=(email,password)
         cursor.execute(query,val)
         returnData = cursor.fetchall()
@@ -62,24 +50,23 @@ def loginEndpoint():
         if returnData:
             returnDataTuple=returnData[0]
             id=returnDataTuple[2]
-            username=returnDataTuple[0]
             cnx.close()
-            return jsonify({'email': email, 'password': password,"id":id,"username":username}),200
+            return jsonify({'email': email, 'password': password,"id":id}),200
 
         else:
             cnx.close()
             return jsonify("user does not exist"),204
 
     except mysql.connector.Error as err:
-        print(err.errno)
+
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            return jsonify("Something is wrong with your user name or password"),300
+            return jsonify("Something is wrong with your user name or password"),404
 
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            return jsonify("Database does not exist"), 305
+            return jsonify("Database does not exist"), 404
 
         else:
-            return jsonify("Something goes wrong"), 400
+            return jsonify("Something goes wrong"), 404
     else:
         cnx.close()
 
@@ -88,9 +75,9 @@ def loginEndpoint():
 
 def checkIfRegister(email):
     try:
-        cnx = connection.MySQLConnection(user=User.user, password=User.password, host=User.host, database=User.database)
+        cnx = connection.MySQLConnection(user='root', password='password',host='127.0.0.1',database='users')
         cursor = cnx.cursor()
-        query = ("SELECT username, email  FROM users WHERE email = %s ")
+        query = ("SELECT username, email  FROM Users WHERE email = %s ")
         val=(email,)
         cursor.execute(query,val)
 
@@ -117,60 +104,75 @@ def checkIfRegister(email):
     else:
         cnx.close()
 
-@app.route('/addPost',methods=['POST'])
+@app.route('/orderDishes',methods=['POST'])
 def orderDishes():
     data = request.get_json()
     userId = data['userId']
-    username = data['username']
-    postBody = data['postBody']
-    getData = datetime.datetime.now()
-    getData = getData.replace(microsecond=0)
-    date = str(getData.date())
-    time=str(getData.time())
-    
+    Pizza = data['pizza']
+    Kebab = data['kebab']
+    Cola = data['cola']
+    HotDog = data['hotDog']
+    IceCream = data['iceCream']
+    Hamburgerer = data['hamburger']
+    Coffee = data['coffee']
+    Tea = data['tea']
+    Cheeseburger = data['cheeseBurger']
+
     try:
-        cnx = connection.MySQLConnection(user=User.user, password=User.password, host=User.host, database=User.database)
+        cnx = connection.MySQLConnection(user='root', password='password',host='127.0.0.1',database='users')
         cursor = cnx.cursor()
-        query = ("INSERT INTO Posts (userId, username, postBody,date,time)"
-                 " VALUES (%s, %s,%s, %s, %s)")
+        query = ("INSERT INTO Orders (userId, Pizza, Kebab,Cola,HotDog,IceCream,Hamburger,Coffee,Tea,Cheeseburger)"
+                 " VALUES (%s, %s,%s, %s, %s,%s, %s,%s, %s, %s)")
         cursor.execute(query,
-                       (userId,username,postBody,date,time))
+                       (userId, Pizza, Kebab,Cola,HotDog,IceCream,Hamburgerer,Coffee,Tea,Cheeseburger))
         cnx.commit()
-        return jsonify("post added successfully"),201
+        return jsonify("order added successfully"),201
 
     except:
-        return jsonify("error while adding post"),404
+        return jsonify("error while adding order"),404
 
 
-@app.route("/getAllPosts",methods=["GET"])
+@app.route("/getAllOrders",methods=["POST"])
 def getAllOrders():
-    cnx = connection.MySQLConnection(user=User.user, password=User.password, host=User.host, database=User.database)
+    data = request.get_json()
+    id = data['id']
+    cnx = connection.MySQLConnection(user='root', password='password', host='127.0.0.1', database='users')
     cursor = cnx.cursor()
-    queryOrders = ("SELECT username,postBody,date,time  "
-                   "FROM Posts ")
-    cursor.execute(queryOrders)
+    queryOrders = ("SELECT Pizza, Kebab, Cola, HotDog, IceCream, Hamburger, Coffee, Tea, Cheeseburger  "
+                   "FROM Orders WHERE userId = %s")
+    val = (id,)
+    cursor.execute(queryOrders, val)
     returnData = cursor.fetchall()
-    username=""
-    postBody=""
-    date=""
-    time=""
+    pizzaCounter, kebabCounter, colaCounter, hotDogCounter, iceCreamCounter, \
+    hamburgerCounter, coffeeCounter, teaCounter, cheeseburgerCounter=0,0,0,0,0,0,0,0,0
 
-    jsonBody=""
-    for post in returnData:
-        username=post[0]
-        postBody=post[1]
-        date=post[2]
-        time=post[3]
+    for order in returnData:
+        orderList=list(order)
+        pizza, kebab, cola, hotDog, iceCream, hamburger, coffee, tea, cheeseburger=orderList
 
+        pizzaCounter=pizzaCounter+int(pizza)
+        kebabCounter = kebabCounter + int(kebab)
+        colaCounter = colaCounter + int(cola)
+        hotDogCounter = hotDogCounter + int(hotDog)
+        iceCreamCounter = iceCreamCounter + int(iceCream)
+        hamburgerCounter = hamburgerCounter + int(hamburger)
+        coffeeCounter = coffeeCounter + int(coffee)
+        teaCounter = teaCounter + int(tea)
+        cheeseburgerCounter = cheeseburgerCounter + int(cheeseburger)
 
-        data='{"username":"'+str(username)+'","postBody":"'+str(postBody)+'","date":"'+str(date)+'","time":"'+str(time)+'"},'
-        # print(data)
-        jsonBody = jsonBody + data
-    jsonBody=jsonBody[:-1]
-    jsonBody="["+jsonBody+"]"
-    # print(jsonBody)
-    return jsonify(json.loads(jsonBody)),200
+    data = {
+        "pizzaCounter": pizzaCounter,
+        "kebabCounter": kebabCounter,
+        "colaCounter": colaCounter,
+        "hotDogCounter": hotDogCounter,
+        "iceCreamCounter": iceCreamCounter,
+        "hamburgerCounter": hamburgerCounter,
+        "coffeeCounter": coffeeCounter,
+        "teaCounter": teaCounter,
+        "cheeseburgerCounter": cheeseburgerCounter
+    }
+    return jsonify(data)
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0",port="8000")
+    app.run(host="0.0.0.0")
     
